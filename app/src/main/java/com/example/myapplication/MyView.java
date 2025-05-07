@@ -70,7 +70,7 @@ public class MyView extends View {
         canvas.drawRect(new Rect(0, 0, getWidth(), getHeight()), p); // 描画用の    Paint オブジェクトを用意
         p = new Paint();
         p.setStyle(Paint.Style.STROKE);
-        p.setColor(Color.RED);
+
         // 配列内の座標を読み出して線（軌跡）を描画
         for (int i = 1; i < array_status.size(); i++) { // 描画するように(true)状態値が与えられているとき
 // 一度離してしてから次に押されるまでの移動分は描画しない
@@ -80,7 +80,14 @@ public class MyView extends View {
                 int x2 = (Integer) array_x.get(i);
                 int y1 = (Integer) array_y.get(i - 1);
                 int y2 = (Integer) array_y.get(i);
+                if((x1+x2)%2 == 0) {
+                    p.setColor(Color.RED);
+                }
+                else{
+                    p.setColor(Color.BLUE);
+                }
 // 線を描画
+
                 canvas.drawLine(x1, y1, x2, y2, p);
             }
         }
