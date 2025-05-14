@@ -1,18 +1,27 @@
 package com.example.myapplication;
 
-import android.hardware.Sensor;
-import android.hardware.SensorEvent;
-import android.hardware.SensorEventListener;
-import android.hardware.SensorManager;
-import android.os.Bundle;
-import android.widget.TextView;
+import android.Manifest;
 
+import android.content.pm.PackageManager;
+import android.location.Location;
+import android.location.LocationListener;
+import android.location.LocationManager;
+import android.os.Bundle;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresPermission;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener {
-    private SensorManager manager;
+public class MainActivity extends AppCompatActivity implements LocationListener {
+    private LocationManager manager;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     @Override
 
 
@@ -21,35 +30,48 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         setContentView(R.layout.activity_main);
 
 
-        manager = (SensorManager)getSystemService(SENSOR_SERVICE);
+        manager = (LocationManager)getSystemService(LOCATION_SERVICE);
 
 
     }
 
-    public void onResume() {
-        super.onResume(); // 明るさセンサ(TYPE_LIGHT)のリストを取得
-         List<Sensor> sensors = manager.getSensorList(Sensor.TYPE_LIGHT); // ひとつ以上見つかったら、最初のセンサを取得してリスナーに登録
-         if (!sensors.isEmpty())
-         {
-             Sensor sensor = sensors.get(0); manager.registerListener( this, sensor, SensorManager.SENSOR_DELAY_NORMAL);
-         }
-    }
-
-    protected void onPause() { super.onPause();
-        manager.unregisterListener(this); }
-
+    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION})
 
     @Override
-    public void onSensorChanged(SensorEvent arg0) { // 明るさセンサが変化したとき
-        if (arg0.sensor.getType() == Sensor.TYPE_LIGHT) { // 明るさの値（単位ルクス）を取得
-            float intensity = arg0.values[0]; // 結果をテキストとして表示
-            String str = Float.toString(intensity) + "ルクス"; TextView textview = (TextView) findViewById(R.id.status_text);
-            textview.setText(str);
+    protected void onResume() {super.onResume();// 実行時パーミッションが許可されているか確認
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)== PackageManager.PERMISSION_GRANTED) {// 許可されていれば位置情報をリクエスト
+            manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, this);}
+        else {// 許可されていなければリクエストを表示
+             ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},LOCATION_PERMISSION_REQUEST_CODE);}
+    }
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String[] permissions,
+                                           @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // 許可されたので再度位置情報をリクエスト
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                        == PackageManager.PERMISSION_GRANTED) {
+                    manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, this);
+                }
+            } else {
+                // 拒否された場合のユーザー通知
+                Toast.makeText(this, "位置情報の許可が必要です", Toast.LENGTH_SHORT).show();
+            }
         }
     }
 
-    @Override
-    public void onAccuracyChanged(Sensor sensor, int accuracy) {
-
+    protected void onPause() {
+        super.onPause();
+        manager.removeUpdates((LocationListener) this);
     }
+    @Override
+    public void onLocationChanged(@NonNull Location location) { // 得られた緯度経度の情報を表示
+        double lat = location.getLatitude();   // 緯度
+        double lng = location.getLongitude(); // 経度
+        Toast.makeText(this, String.format("%.3f %.3f", lat, lng), Toast.LENGTH_SHORT).show(); }
+
+
 }
