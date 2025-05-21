@@ -3,25 +3,19 @@ package com.example.myapplication;
 import android.Manifest;
 
 import android.content.pm.PackageManager;
-import android.location.Location;
-import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.AudioFormat;
+import android.media.AudioRecord;
+import android.media.MediaRecorder;
 import android.os.Bundle;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
 import android.widget.Toast;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.RequiresPermission;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 
-import java.util.List;
+public class MainActivity extends AppCompatActivity {
 
-public class MainActivity extends AppCompatActivity implements LocationListener {
-    private LocationManager manager;
-    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
     @Override
 
 
@@ -30,48 +24,57 @@ public class MainActivity extends AppCompatActivity implements LocationListener 
         setContentView(R.layout.activity_main);
 
 
-        manager = (LocationManager)getSystemService(LOCATION_SERVICE);
+
 
 
     }
 
-    @RequiresPermission(allOf = {Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION})
+
 
     @Override
-    protected void onResume() {super.onResume();// 実行時パーミッションが許可されているか確認
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)== PackageManager.PERMISSION_GRANTED) {// 許可されていれば位置情報をリクエスト
-            manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, this);}
-        else {// 許可されていなければリクエストを表示
-             ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},LOCATION_PERMISSION_REQUEST_CODE);}
-    }
-    @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           @NonNull String[] permissions,
-                                           @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 許可されたので再度位置情報をリクエスト
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-                        == PackageManager.PERMISSION_GRANTED) {
-                    manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 10, this);
-                }
-            } else {
-                // 拒否された場合のユーザー通知
-                Toast.makeText(this, "位置情報の許可が必要です", Toast.LENGTH_SHORT).show();
-            }
+    protected void onResume() {
+        super.onResume();// 実行時パーミッションが許可されているか確認
+        final int FREQUENCY = 8000;
+        int bufsize = AudioRecord.getMinBufferSize(
+                FREQUENCY,                        // 標本化周波数
+                AudioFormat.CHANNEL_CONFIGURATION_MONO,  // モノラル
+                AudioFormat.ENCODING_PCM_16BIT
+        );
+            //rokuon
+        short[] buf = new short[bufsize];
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
         }
+        AudioRecord rec = new AudioRecord(
+                MediaRecorder.AudioSource.MIC,  // マイクから録音
+                FREQUENCY,                      // この3つは先ほどと同じ
+                AudioFormat.CHANNEL_CONFIGURATION_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                bufsize);
+        rec.startRecording();
+
+        rec.stop();
+        rec.release();
+        rec.read(buf, 0, bufsize);
+// 二回目に読み込んだデータを処理
+        int datasize = rec.read(buf, 0, bufsize), max = 0;
+// 振幅の最大値を計算
+        for (int i = 0; i < datasize; i++) {
+            if ((buf[i] > 0) && (buf[i] >  max)) { max =  buf[i]; } if ((buf[i] < 0) && (buf[i] < -max)) { max = -buf[i]; }
+        }
+// 結果を    Toast で表示
+        String str = Integer.toString(max);
+        Toast.makeText(this, str, Toast.LENGTH_SHORT).show();
     }
 
-    protected void onPause() {
-        super.onPause();
-        manager.removeUpdates((LocationListener) this);
-    }
-    @Override
-    public void onLocationChanged(@NonNull Location location) { // 得られた緯度経度の情報を表示
-        double lat = location.getLatitude();   // 緯度
-        double lng = location.getLongitude(); // 経度
-        Toast.makeText(this, String.format("%.3f %.3f", lat, lng), Toast.LENGTH_SHORT).show(); }
+
+
 
 
 }
